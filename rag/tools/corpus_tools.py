@@ -123,10 +123,15 @@ def update_rag_corpus(
         if description:
             corpus.description = description
         
-        # Apply updates
+        update_fields = []
+        if display_name:
+            update_fields.append("display_name")
+        if description:
+            update_fields.append("description")
+
         updated_corpus = rag.update_corpus(
             corpus=corpus,
-            update_mask=["display_name", "description"]
+            update_mask=update_fields
         )
         
         return {
@@ -258,16 +263,6 @@ def get_rag_corpus(corpus_id: str) -> Dict[str, Any]:
             "files_count": files_count,
             "state": status
         }
-        
-        # Include raw API response data for transparency
-        raw_data = {}
-        if hasattr(corpus, "to_dict"):
-            raw_data = corpus.to_dict()
-        elif hasattr(corpus, "__dict__"):
-            raw_data = {k: v for k, v in corpus.__dict__.items() if not k.startswith('_')}
-        
-        if raw_data:
-            corpus_details["raw_api_data"] = raw_data
         
         return {
             "status": "success",
@@ -464,16 +459,6 @@ def get_rag_file(
             "create_time": str(file.create_time) if hasattr(file, "create_time") else None,
             "update_time": str(file.update_time) if hasattr(file, "update_time") else None
         }
-        
-        # Include raw API response data for transparency
-        raw_data = {}
-        if hasattr(file, "to_dict"):
-            raw_data = file.to_dict()
-        elif hasattr(file, "__dict__"):
-            raw_data = {k: v for k, v in file.__dict__.items() if not k.startswith('_')}
-        
-        if raw_data:
-            file_details["raw_api_data"] = raw_data
         
         return {
             "status": "success",

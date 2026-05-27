@@ -53,9 +53,6 @@ def create_gcs_bucket(
     if location is None:
         location = GCS_DEFAULT_LOCATION
     try:
-        # Initialize the client
-        client = storage.Client(project=PROJECT_ID)
-        
         # Check if the bucket already exists
         try:
             if client.lookup_bucket(bucket_name):
@@ -117,9 +114,6 @@ def list_gcs_buckets(
     if max_results is None:
         max_results = GCS_LIST_BUCKETS_MAX_RESULTS
     try:
-        # Initialize the client
-        client = storage.Client(project=PROJECT_ID)
-        
         # List the buckets with optional filtering
         bucket_iterator = client.list_buckets(prefix=prefix, max_results=max_results)
         
@@ -165,9 +159,6 @@ def get_bucket_details(
         A dictionary containing the bucket details and a list of files
     """
     try:
-        # Initialize the client
-        client = storage.Client(project=PROJECT_ID)
-        
         # Get the bucket
         bucket = client.get_bucket(bucket_name)
         
@@ -240,9 +231,6 @@ def list_blobs_in_bucket(
     if max_results is None:
         max_results = GCS_LIST_BLOBS_MAX_RESULTS
     try:
-        # Initialize the client
-        client = storage.Client(project=PROJECT_ID)
-        
         # Get the bucket
         bucket = client.bucket(bucket_name)
         
@@ -316,43 +304,40 @@ def upload_file_to_gcs(
     Returns:
         A dictionary containing the upload status and details
     """
-    if content_type is None:
-        content_type = GCS_DEFAULT_CONTENT_TYPE
     try:
-        # Check if user_content contains a PDF attachment
-        if (hasattr(tool_context, "user_content") and 
-            tool_context.user_content and 
+        # Check if user_content contains a file attachment
+        if (hasattr(tool_context, "user_content") and
+            tool_context.user_content and
             tool_context.user_content.parts):
-            
-            # Look for any file in parts
+
+            # Look for any inline file in parts
             file_data = None
             for part in tool_context.user_content.parts:
                 if hasattr(part, "inline_data") and part.inline_data:
-                    if part.inline_data.mime_type.startswith("application/"):
-                        file_data = part.inline_data.data
-                        break
-            
+                    file_data = part.inline_data.data
+                    if content_type is None:
+                        content_type = part.inline_data.mime_type
+                    break
+
+            if content_type is None:
+                content_type = GCS_DEFAULT_CONTENT_TYPE
+
             if file_data:
-                # We found file data in the user message
                 if not destination_blob_name:
                     destination_blob_name = file_artifact_name
-                    if content_type == "application/pdf" and not destination_blob_name.lower().endswith(".pdf"):
-                        destination_blob_name += ".pdf"
-                
+
                 # Upload to GCS
-                client = storage.Client(project=PROJECT_ID)
                 bucket = client.bucket(bucket_name)
                 blob = bucket.blob(destination_blob_name)
-                
+
                 blob.upload_from_string(
                     data=file_data,
                     content_type=content_type
                 )
-                
-                # Generate a URL
+
                 try:
                     url = blob.public_url
-                except:
+                except Exception:
                     url = f"gs://{bucket_name}/{destination_blob_name}"
                 
                 return {
